@@ -148,6 +148,57 @@ function applyRealtimeCardPayload(cols, payload) {
   return cols;
 }
 
+function applyRealtimeColumnPayload(cols, payload) {
+  if (payload.eventType === "DELETE") {
+    const id = payload.old?.id;
+    if (!id) {
+      return cols;
+    }
+    return cols.filter((col) => col.id !== id);
+  }
+  if (payload.eventType === "INSERT") {
+    const row = payload.new;
+    if (!row?.id) {
+      return cols;
+    }
+    const exists = cols.some((col) => col.id === row.id);
+    if (exists) {
+      return cols;
+    }
+    const newCol = {
+      id: row.id,
+      name: row.name ?? "Untitled",
+      orderIndex: row.order_index ?? 0,
+      cards: [],
+    };
+    return [...cols, newCol].sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+  if (payload.eventType === "UPDATE") {
+    const row = payload.new;
+    if (!row?.id) {
+      return cols;
+    }
+    const exists = cols.some((col) => col.id === row.id);
+    if (!exists) {
+      const newCol = {
+        id: row.id,
+        name: row.name ?? "Untitled",
+        orderIndex: row.order_index ?? 0,
+        cards: [],
+      };
+      return [...cols, newCol].sort((a, b) => a.orderIndex - b.orderIndex);
+    }
+    return cols
+      .map((col) =>
+        col.id === row.id
+          ? { ...col, name: row.name ?? col.name, orderIndex: row.order_index ?? col.orderIndex }
+          : col
+      )
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+  return cols;
+}
+
 export default function Home() {
   const MOVE_DEBOUNCE_MS = 800;
   const MOVE_MAX_WAIT_MS = 3000;
@@ -571,7 +622,7 @@ export default function Home() {
           return;
         }
         channel = supabase
-          .channel(`cards-board:${selectedBoardId}`)
+          .channel(`board:${selectedBoardId}`)
           .on(
             "postgres_changes",
             {
@@ -585,6 +636,36 @@ export default function Home() {
                 return;
               }
               setColumns((cols) => applyRealtimeCardPayload(cols, payload));
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "columns",
+              filter: `board_id=eq.${selectedBoardId}`,
+            },
+            (payload) => {
+              if (cancelled) {
+                return;
+              }
+              setColumns((cols) => applyRealtimeColumnPayload(cols, payload));
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "board_members",
+              filter: `board_id=eq.${selectedBoardId}`,
+            },
+            (payload) => {
+              if (cancelled) {
+                return;
+              }
+              loadBoardMembers(selectedBoardId);
             }
           )
           .subscribe((subscribeStatus, err) => {
@@ -1538,7 +1619,7 @@ export default function Home() {
                     className="rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
                     onClick={() => setIsRequestsPanelOpen((prev) => !prev)}
                   >
-                    Requests {isRequestsPanelOpen ? "Hide" : "Show"}
+                    Requests {pendingMembers.length > 0 ? `(${pendingMembers.length})` : ""} {isRequestsPanelOpen ? "▲" : "▼"}
                   </button>
                   <button
                     type="button"
