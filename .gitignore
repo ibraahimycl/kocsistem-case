@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Supabase local
+supabase/
+
+# Notes (internal)
+isterler.txt
+solution.txt
+kart-ve-sutun-cozum-ozeti.txt
+og-image.jpg

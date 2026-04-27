@@ -1,0 +1,105 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.activity_logs (
+  id bigint NOT NULL DEFAULT nextval('activity_logs_id_seq'::regclass),
+  board_id uuid NOT NULL,
+  card_id uuid,
+  actor_user_id uuid,
+  action USER-DEFINED NOT NULL,
+  from_column_id uuid,
+  to_column_id uuid,
+  from_order_index bigint,
+  to_order_index bigint,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT activity_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT activity_logs_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id),
+  CONSTRAINT activity_logs_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id),
+  CONSTRAINT activity_logs_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id),
+  CONSTRAINT activity_logs_from_column_id_fkey FOREIGN KEY (from_column_id) REFERENCES public.columns(id),
+  CONSTRAINT activity_logs_to_column_id_fkey FOREIGN KEY (to_column_id) REFERENCES public.columns(id)
+);
+CREATE TABLE public.board_members (
+  id bigint NOT NULL DEFAULT nextval('board_members_id_seq'::regclass),
+  board_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role USER-DEFINED NOT NULL DEFAULT 'viewer'::member_role,
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::member_status,
+  approved_by uuid,
+  approved_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT board_members_pkey PRIMARY KEY (id),
+  CONSTRAINT board_members_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id),
+  CONSTRAINT board_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT board_members_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.boards (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL CHECK (char_length(TRIM(BOTH FROM name)) >= 2),
+  room_code text NOT NULL UNIQUE CHECK (room_code ~ '^[A-Z0-9]{4,8}$'::text),
+  room_password_hash text NOT NULL,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT boards_pkey PRIMARY KEY (id),
+  CONSTRAINT boards_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.card_checklist_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  card_id uuid NOT NULL,
+  title text NOT NULL CHECK (char_length(TRIM(BOTH FROM title)) >= 1),
+  description text NOT NULL DEFAULT ''::text,
+  is_done boolean NOT NULL DEFAULT false,
+  order_index bigint NOT NULL CHECK (order_index > 0),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT card_checklist_items_pkey PRIMARY KEY (id),
+  CONSTRAINT card_checklist_items_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id)
+);
+CREATE TABLE public.cards (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  board_id uuid NOT NULL,
+  column_id uuid NOT NULL,
+  order_index bigint NOT NULL CHECK (order_index > 0),
+  title text NOT NULL CHECK (char_length(TRIM(BOTH FROM title)) >= 1),
+  description text NOT NULL DEFAULT ''::text,
+  labels jsonb NOT NULL DEFAULT '[]'::jsonb,
+  due_date timestamp with time zone,
+  assignee_id uuid,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  start_date timestamp with time zone,
+  CONSTRAINT cards_pkey PRIMARY KEY (id),
+  CONSTRAINT cards_assignee_id_fkey FOREIGN KEY (assignee_id) REFERENCES auth.users(id),
+  CONSTRAINT cards_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT fk_cards_column FOREIGN KEY (board_id) REFERENCES public.columns(id),
+  CONSTRAINT fk_cards_column FOREIGN KEY (column_id) REFERENCES public.columns(id),
+  CONSTRAINT fk_cards_column FOREIGN KEY (board_id) REFERENCES public.columns(board_id),
+  CONSTRAINT fk_cards_column FOREIGN KEY (column_id) REFERENCES public.columns(board_id)
+);
+CREATE TABLE public.columns (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  board_id uuid NOT NULL,
+  name text NOT NULL CHECK (char_length(TRIM(BOTH FROM name)) >= 1),
+  order_index bigint NOT NULL CHECK (order_index > 0),
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT columns_pkey PRIMARY KEY (id),
+  CONSTRAINT columns_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id),
+  CONSTRAINT columns_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  display_name text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+
+
+mevcut database yapım bu şekilde benim
