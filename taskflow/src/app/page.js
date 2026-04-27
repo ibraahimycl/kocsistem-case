@@ -1044,7 +1044,12 @@ export default function Home() {
       setColumns((prev) =>
         prev.map((column) =>
           column.id === data.card.columnId
-            ? { ...column, cards: [...column.cards, data.card] }
+            ? {
+                ...column,
+                cards: column.cards.some((c) => c.id === data.card.id)
+                  ? column.cards
+                  : [...column.cards, data.card],
+              }
             : column
         )
       );
