@@ -1,0 +1,34 @@
+# TaskFlow Kullanım Kılavuzu
+
+Hoş geldiniz! TaskFlow uygulamasını kullanırken size rehberlik edecek adımları aşağıda bulabilirsiniz.
+
+## 1. Kayıt ve Giriş İşlemleri
+- "Sign Up" diyerek bilgilerinizi girip kayıt olun. 
+- Kayıt sonrası e-posta adresinize bir onay linki gönderilecektir. Bu linke tıklayarak e-postanızı onaylamanız gerekir.
+- Onaylama işleminden sonra "Sign In" adımından giriş yapabilirsiniz.
+
+## 2. Board (Pano) Kurulumu
+- Sol üstte yer alan "Boards" butonuna basın. 
+- Sol taraftan çekmece gibi açılan menüde "Create Board" kısmından odanızın adını ve oda şifrenizi belirleyin.
+- Note: Board'u (panoyu) kuran kişi otomatik olarak o board'un "Admin"i olur.
+
+## 3. Odaya Kullanıcı Ekleme
+- Board kurulduktan sonra, odaya atanan otomatik ID bilgisini sağ üstte, "Logout" butonunun hemen solunda görebilirsiniz.
+- Eklemek istediğiniz kişiye bu Oda ID'sini ve odayı kurarken belirlediğiniz Şifreyi iletin (Bu işlemi uygulama dışından, örneğin mesajlaşarak yapmalısınız).
+- Odaya katılacak kişi, kendi hesabı ile giriş yaptıktan sonra "Boards" menüsündeki "Join Room" kısmına bu bilgileri girmeli ve "Send Request" butonuna basmalıdır.
+- Sonrasında Admin, sağ üstte yer alan "Requests" butonundan katılımcının isteğini onaylamalıdır (Approve).
+- Admin onayladıktan sonra, board'a katılan kişinin sayfayı yenilemesi (refresh) gerekmektedir.
+
+## 4. Uygulama İçi Menüler ve Fonksiyonlar
+- **Members Butonu:** Odadaki kullanıcıları (admin, editor, viewer) gösterir.
+- **Card Details Butonu:** Kartların açıklamalarını açıp kapatmanızı sağlar.
+- **Oda Şifresini Unutursanız:** "Boards" çekmecesindeki "Reset Room Password" kısmına giderek doğrudan yeni bir şifre belirleyip sıfırlayabilirsiniz.
+
+## 5. Sürükle ve Bırak Kullanımı
+- Sütunları hareket ettirmek için sütunların başlığında yer alan "Drag" işaretinden tutarak sürükleyebilirsiniz.
+- Kartları hareket ettirmek için ise kartların sol tarafındaki renkli şerit kısmından tutup sürükleyebilirsiniz.
+
+> **Not:** 
+> İstenmeyen bir durumla, takılmayla veya beklenmedik bir hatayla / bug ile karşılaşırsanız sayfayı yenilemenizi tavsiye ederim.
+
+Kolay gelsin!
