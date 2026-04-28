@@ -23,8 +23,6 @@ import { KanbanCard } from "@/components/kanban-card";
 import { KanbanColumn } from "@/components/kanban-column";
 import { CardDetailsModal } from "@/components/card-details-modal";
 
-let lastColumnMoveTime = 0;
-
 async function api(url, options = {}) {
   const response = await fetch(url, {
     method: options.method ?? "GET",
@@ -183,11 +181,6 @@ function applyRealtimeColumnPayload(cols, payload) {
     if (row.order_index >= 1000000000) {
       return cols;
     }
-    // İki fazlı güncellemenin 2. fazındaki (doğru sayılar) tek tek güncellemelerin
-    // işlemi yapan adminin ekranını bozmasını önlemek için 3 saniyelik bir yoksayma süresi ekledik.
-    if (Date.now() - lastColumnMoveTime < 3000) {
-      return cols;
-    }
     const exists = cols.some((col) => col.id === row.id);
     if (!exists) {
       const newCol = {
@@ -207,6 +200,13 @@ function applyRealtimeColumnPayload(cols, payload) {
       .sort((a, b) => a.orderIndex - b.orderIndex);
   }
   return cols;
+}
+
+function normalizeColumnOrderIndexes(cols) {
+  return cols.map((col, index) => ({
+    ...col,
+    orderIndex: (index + 1) * 10000,
+  }));
 }
 
 export default function Home() {
@@ -270,6 +270,9 @@ export default function Home() {
   const columnFlushTimerRef = useRef(null);
   const columnMaxWaitTimerRef = useRef(null);
   const isFlushingColumnMovesRef = useRef(false);
+  const columnRealtimeBufferRef = useRef(new Map());
+  const columnRealtimeTimerRef = useRef(null);
+  const COLUMN_REALTIME_BATCH_MS = 220;
 
   function createMutationId() {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -277,6 +280,21 @@ export default function Home() {
     }
     return `mutation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
+
+  const flushColumnRealtimeBuffer = useCallback(() => {
+    if (columnRealtimeTimerRef.current) {
+      clearTimeout(columnRealtimeTimerRef.current);
+      columnRealtimeTimerRef.current = null;
+    }
+    if (columnRealtimeBufferRef.current.size === 0) {
+      return;
+    }
+    const bufferedPayloads = Array.from(columnRealtimeBufferRef.current.values());
+    columnRealtimeBufferRef.current.clear();
+    setColumns((cols) =>
+      bufferedPayloads.reduce((acc, payload) => applyRealtimeColumnPayload(acc, payload), cols)
+    );
+  }, []);
 
   function persistPendingMovesToStorage() {
     if (typeof window === "undefined") {
@@ -660,7 +678,16 @@ export default function Home() {
               if (cancelled) {
                 return;
               }
-              setColumns((cols) => applyRealtimeColumnPayload(cols, payload));
+              const rowId = payload.new?.id ?? payload.old?.id;
+              if (!rowId) {
+                return;
+              }
+              columnRealtimeBufferRef.current.set(rowId, payload);
+              if (!columnRealtimeTimerRef.current) {
+                columnRealtimeTimerRef.current = setTimeout(() => {
+                  flushColumnRealtimeBuffer();
+                }, COLUMN_REALTIME_BATCH_MS);
+              }
             }
           )
           .on(
@@ -690,6 +717,11 @@ export default function Home() {
 
     return () => {
       cancelled = true;
+      if (columnRealtimeTimerRef.current) {
+        clearTimeout(columnRealtimeTimerRef.current);
+        columnRealtimeTimerRef.current = null;
+      }
+      columnRealtimeBufferRef.current.clear();
       if (supabase && channel) {
         supabase.removeChannel(channel).catch(() => {});
       }
@@ -697,7 +729,7 @@ export default function Home() {
         supabase.realtime.disconnect();
       }
     };
-  }, [selectedBoardId, status, user?.id]);
+  }, [selectedBoardId, status, user?.id, flushColumnRealtimeBuffer]);
 
   useEffect(() => {
     setResetRoomPassword("");
@@ -1259,9 +1291,8 @@ export default function Home() {
       if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
         return;
       }
-      const nextColumns = arrayMove(columns, activeIndex, overIndex);
+      const nextColumns = normalizeColumnOrderIndexes(arrayMove(columns, activeIndex, overIndex));
       setColumns(nextColumns);
-      lastColumnMoveTime = Date.now();
       const movedIndex = nextColumns.findIndex((column) => column.id === columnId);
       const beforeColumnId = nextColumns[movedIndex + 1]?.id ?? null;
       const mutationId = createMutationId();

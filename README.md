@@ -203,12 +203,19 @@ Board'daki tablolar (`cards`, `columns`, `board_members`) Realtime channel üzer
 Bir kart taşındıktan sonra board'u komple tekrar çekme davranışı gösterilmez. Optimistic UI + Realtime + Board Revision kombinasyonu ile gereksizleştirildi. Bu, özellikle çok kartlı board'larda dramatik performans iyileşmesi sağlar.
 
 **g) Sütun Sıralaması ve Realtime Kargaşası Çözümü (Two-Phase Update UI Jitter):**
-Sütunların yerlerini değiştirirken veritabanında `UNIQUE(board_id, order_index)` hatası almamak için sıralamalar `1.000.000.000` (1 Milyar) gibi geçici devasa değerlerle yukarı kaydırılır (Faz 1) ve ardından doğru sıralara güncellenir (Faz 2). Sütun tablosu Realtime'a bağlandığında, UI bu tek tek gelen milyarlık Faz 1 güncellemelerini anında yakalayıp 1 saniyelik bir görsel kargaşa ("titreme/flicker") yaratıyordu.
-Bu problemi çözmek için 2 yöntem düşünüldü:
-1. **Frontend'de Yoksayma (Filtreleme):** UI'daki Realtime dinleyicisine basit bir kontrol ekleyip `order_index >= 1.000.000.000` gelen ara güncellemeleri çöpe atmak.
-2. **Backend'de Tek SQL İşlemi (Transaction / RPC):** API'deki `for` döngüsünü kaldırıp tüm operasyonları tek bir PostgreSQL fonksiyonu (`reorder_columns`) içerisine alarak Realtime'a sızmasını veritabanı seviyesinde durdurmak.
+Sütun sıralama API'si `UNIQUE(board_id, order_index)` çakışmasını önlemek için iki fazlı çalışır:
+- **Faz 1:** Tüm hedef satırlar geçici olarak `+1.000.000.000` aralığına taşınır.
+- **Faz 2:** Nihai `10000, 20000, 30000...` değerleri tek tek yazılır.
 
-*Karar:* Sistemin halihazırdaki sadeliğini bozmadan, en hızlı ve kolay çözücü olduğu için **1. Yöntem (Frontend Filtreleme)** uygulama kararı verdim.
+Realtime açıkken bu tek tek update akışı özellikle sütun taşıma sırasında "A-C-B -> A-B-C -> A-C-B" gibi kısa süreli flicker üretebiliyordu. Çözüm iki parçalı uygulandı:
+
+1. **Actor (işlemi yapan admin) için local finalizasyon:**  
+   Drag bırakıldığı anda sadece dizi sırası değil, local `orderIndex` değerleri de anında nihai değerlere (`(index+1)*10000`) normalize edilir. Böylece admin ekranında Realtime'dan gelen tekil Faz 2 paketleri sıralamayı geri bozamaz.
+
+2. **Non-actor (diğer kullanıcılar) için Realtime batch/coalesce:**  
+   `columns` realtime update paketleri 200ms civarı kısa bir buffer'da toplanır ve tek `setColumns` ile uygulanır. Böylece kullanıcıya tek tek ara state render edilmez, sıralama tek hamlede stabil görünür.
+
+Ek olarak `order_index >= 1.000.000.000` olan geçici Faz 1 paketleri UI tarafında hâlâ yoksayılır.
 
 ---
 
