@@ -178,6 +178,10 @@ function applyRealtimeColumnPayload(cols, payload) {
     if (!row?.id) {
       return cols;
     }
+    // İki fazlı güncellemedeki geçici offset değerlerini yoksay (Titremeyi önler)
+    if (row.order_index >= 1000000000) {
+      return cols;
+    }
     const exists = cols.some((col) => col.id === row.id);
     if (!exists) {
       const newCol = {

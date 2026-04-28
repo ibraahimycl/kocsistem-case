@@ -202,6 +202,14 @@ Board'daki tablolar (`cards`, `columns`, `board_members`) Realtime channel üzer
 **f) Full Refetch:**
 Bir kart taşındıktan sonra board'u komple tekrar çekme davranışı gösterilmez. Optimistic UI + Realtime + Board Revision kombinasyonu ile gereksizleştirildi. Bu, özellikle çok kartlı board'larda dramatik performans iyileşmesi sağlar.
 
+**g) Sütun Sıralaması ve Realtime Kargaşası Çözümü (Two-Phase Update UI Jitter):**
+Sütunların yerlerini değiştirirken veritabanında `UNIQUE(board_id, order_index)` hatası almamak için sıralamalar `1.000.000.000` (1 Milyar) gibi geçici devasa değerlerle yukarı kaydırılır (Faz 1) ve ardından doğru sıralara güncellenir (Faz 2). Sütun tablosu Realtime'a bağlandığında, UI bu tek tek gelen milyarlık Faz 1 güncellemelerini anında yakalayıp 1 saniyelik bir görsel kargaşa ("titreme/flicker") yaratıyordu.
+Bu problemi çözmek için 2 yöntem düşünüldü:
+1. **Frontend'de Yoksayma (Filtreleme):** UI'daki Realtime dinleyicisine basit bir kontrol ekleyip `order_index >= 1.000.000.000` gelen ara güncellemeleri çöpe atmak.
+2. **Backend'de Tek SQL İşlemi (Transaction / RPC):** API'deki `for` döngüsünü kaldırıp tüm operasyonları tek bir PostgreSQL fonksiyonu (`reorder_columns`) içerisine alarak Realtime'a sızmasını veritabanı seviyesinde durdurmak.
+
+*Karar:* Sistemin halihazırdaki sadeliğini bozmadan, en hızlı ve kolay çözücü olduğu için **1. Yöntem (Frontend Filtreleme)** uygulama kararı verdim.
+
 ---
 
   
