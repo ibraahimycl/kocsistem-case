@@ -23,6 +23,8 @@ import { KanbanCard } from "@/components/kanban-card";
 import { KanbanColumn } from "@/components/kanban-column";
 import { CardDetailsModal } from "@/components/card-details-modal";
 
+let lastColumnMoveTime = 0;
+
 async function api(url, options = {}) {
   const response = await fetch(url, {
     method: options.method ?? "GET",
@@ -178,8 +180,12 @@ function applyRealtimeColumnPayload(cols, payload) {
     if (!row?.id) {
       return cols;
     }
-    // İki fazlı güncellemedeki geçici offset değerlerini yoksay (Titremeyi önler)
     if (row.order_index >= 1000000000) {
+      return cols;
+    }
+    // İki fazlı güncellemenin 2. fazındaki (doğru sayılar) tek tek güncellemelerin
+    // işlemi yapan adminin ekranını bozmasını önlemek için 3 saniyelik bir yoksayma süresi ekledik.
+    if (Date.now() - lastColumnMoveTime < 3000) {
       return cols;
     }
     const exists = cols.some((col) => col.id === row.id);
@@ -1255,6 +1261,7 @@ export default function Home() {
       }
       const nextColumns = arrayMove(columns, activeIndex, overIndex);
       setColumns(nextColumns);
+      lastColumnMoveTime = Date.now();
       const movedIndex = nextColumns.findIndex((column) => column.id === columnId);
       const beforeColumnId = nextColumns[movedIndex + 1]?.id ?? null;
       const mutationId = createMutationId();
